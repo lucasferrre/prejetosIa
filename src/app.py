@@ -88,7 +88,7 @@ def set_custom_style():
         .stButton>button {{
             width: 100%;
             border: none;
-            background: linear-gradient(90deg, #6e00ff 0%, #00d4ff 100%);
+            background: linear-gradient(90deg, #616161 0%, #9e9e9e 100%);
             color: white;
             padding: 12px;
             border-radius: 8px;
@@ -98,7 +98,33 @@ def set_custom_style():
         
         .stButton>button:hover {{
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(110, 0, 255, 0.4);
+            box-shadow: 0 4px 12px rgba(64, 64, 64, 0.4);
+        }}
+        
+        /* Container do rodapé fixo - ATUALIZADO */
+        .footer-container {{
+            position: fixed;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100%;
+            max-width: 600px;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            padding: 1rem;
+            border-top: 1px solid rgba(110, 0, 255, 0.2);
+            z-index: 100;
+        }}
+        
+        /* Espaço para evitar que o conteúdo fique escondido - ATUALIZADO */
+        .main .block-container {{
+            padding-bottom: 180px !important;
+        }}
+        
+        /* Container do chat - NOVO */
+        .chat-container {{
+            max-width: 600px;
+            margin: 0 auto;
+            padding-bottom: 150px;
         }}
     </style>
     """, unsafe_allow_html=True)
@@ -112,8 +138,10 @@ if "gemini_chat" not in st.session_state:
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# Container principal
+# Container do chat - MODIFICADO
 with st.container():
+    st.markdown('<div class="chat-container">', unsafe_allow_html=True)
+    
     # Logo no topo
     st.image("imagens/AstraMind_logo.png", width=500, use_container_width=True)
     
@@ -124,52 +152,53 @@ with st.container():
                 st.markdown(f"<div class='glass-effect' style='color: #00d4ff;'>{message['content']}</div>", unsafe_allow_html=True)
             else:
                 st.markdown(f"<div class='glass-effect'>{message['content']}</div>", unsafe_allow_html=True)
-
-# Rodapé fixo
-with st.container():
-    st.markdown('<div class="footer-container">', unsafe_allow_html=True)
     
-    # Input de mensagem
-    if prompt := st.chat_input("Digite sua mensagem..."):
-        st.session_state.messages.append({"role": "user", "content": prompt})
+    st.markdown('</div>', unsafe_allow_html=True)
+
+# Rodapé fixo - MODIFICADO
+st.markdown('<div class="footer-container">', unsafe_allow_html=True)
+
+# Input de mensagem
+if prompt := st.chat_input("Digite sua mensagem..."):
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    
+    with st.chat_message("user"):
+        st.markdown(f"<div class='glass-effect' style='color: #00d4ff;'>{prompt}</div>", unsafe_allow_html=True)
+    
+    with st.chat_message("assistant"):
+        with st.spinner("Processando..."):
+            response = st.session_state.gemini_chat.send_message(prompt)
         
-        with st.chat_message("user"):
-            st.markdown(f"<div class='glass-effect' style='color: #00d4ff;'>{prompt}</div>", unsafe_allow_html=True)
-        
-        with st.chat_message("assistant"):
-            with st.spinner("Processando..."):
-                response = st.session_state.gemini_chat.send_message(prompt)
+        if response.startswith(("⚠️", "⛔")):
+            st.markdown(
+                f"""<div class='error-effect'>⚠️ {response}</div>""",
+                unsafe_allow_html=True
+            )
+        else:
+            message_placeholder = st.empty()
+            full_response = ""
             
-            if response.startswith(("⚠️", "⛔")):
-                st.markdown(
-                    f"""<div class='error-effect'>⚠️ {response}</div>""",
-                    unsafe_allow_html=True
-                )
-            else:
-                message_placeholder = st.empty()
-                full_response = ""
-                
-                for chunk in response.split(" "):
-                    full_response += chunk + " "
-                    time.sleep(0.05)
-                    message_placeholder.markdown(f"""
-                    <div class='glass-effect'>
-                        {full_response}<span style='color: #00d4ff;'>▌</span>
-                    </div>
-                    """, unsafe_allow_html=True)
-                
+            for chunk in response.split(" "):
+                full_response += chunk + " "
+                time.sleep(0.05)
                 message_placeholder.markdown(f"""
                 <div class='glass-effect'>
-                    {full_response}
+                    {full_response}<span style='color: #00d4ff;'>▌</span>
                 </div>
                 """, unsafe_allow_html=True)
             
-            st.session_state.messages.append({"role": "assistant", "content": response})
-    
-    # Botão de limpar
-    if st.button("Limpar Conversa", key="clear_chat", use_container_width=True, type="primary"):
-        st.session_state.gemini_chat.clear_history()
-        st.session_state.messages = []
-        st.rerun()
-    
-    st.markdown('</div>', unsafe_allow_html=True)
+            message_placeholder.markdown(f"""
+            <div class='glass-effect'>
+                {full_response}
+            </div>
+            """, unsafe_allow_html=True)
+        
+        st.session_state.messages.append({"role": "assistant", "content": response})
+
+# Botão de limpar
+if st.button("Limpar Conversa", key="clear_chat", use_container_width=True, type="primary"):
+    st.session_state.gemini_chat.clear_history()
+    st.session_state.messages = []
+    st.rerun()
+
+st.markdown('</div>', unsafe_allow_html=True)
